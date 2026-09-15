@@ -5,7 +5,10 @@ const nextConfig = {
     unoptimized: true,
   },
   experimental: {
-    serverComponentsExternalPackages: ["tesseract.js"],
+    serverComponentsExternalPackages: ["tesseract.js", "@prisma/client"],
+    outputFileTracingIncludes: {
+      "/**": ["./prisma/dev.db", "./prisma/schema.prisma"],
+    },
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
