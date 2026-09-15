@@ -4,8 +4,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    serverComponentsExternalPackages: ["tesseract.js"],
+  },
   webpack: (config, { isServer }) => {
-    // Canvas & native binary fallbacks for browser/server bundling
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,

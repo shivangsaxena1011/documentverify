@@ -12,6 +12,7 @@
 
 # production
 /build
+*.traineddata
 
 # misc
 .DS_Store
