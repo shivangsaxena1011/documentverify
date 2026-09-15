@@ -1,0 +1,199 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  code        String   @unique
+  orgType     String   @default("ENTERPRISE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+  apiKeys     ApiKey[]
+  auditLogs   AuditLog[]
+  screenings  ScreeningSession[]
+}
+
+model User {
+  id             String            @id @default(uuid())
+  email          String            @unique
+  passwordHash   String
+  name           String
+  role           String            @default("OPERATOR") // OPERATOR, INVESTIGATOR, REVIEWER, ADMINISTRATOR
+  organizationId String
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  screenings     ScreeningSession[]
+}
+
+model ScreeningSession {
+  id                       String               @id @default(uuid())
+  screeningId              String               @unique // e.g. TR-2026-98421
+  documentType             String               @default("UNKNOWN") // AADHAAR, PAN, PASSPORT, DRIVING_LICENCE, VOTER_ID, UNKNOWN
+  detectedType             String               @default("UNKNOWN")
+  classificationConfidence Float                @default(0.0)
+  status                   String               @default("COMPLETED") // PROCESSING, COMPLETED, REQUIRES_REVIEW, FLAGGED, ARCHIVED
+  riskScore                Int                  @default(15) // 0 - 100
+  riskTier                 String               @default("LOW_RISK") // LOW_RISK, REVIEW_REQUIRED, HIGH_RISK
+  processingTimeMs         Int                  @default(0)
+  
+  operatorId               String
+  operator                 User                 @relation(fields: [operatorId], references: [id])
+  organizationId           String
+  organization             Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  document                 Document?
+  ocrResult                OCRResult?
+  extractedFields          ExtractedField[]
+  documentAnalysis         DocumentAnalysis?
+  forensicAnomalies        ForensicAnomaly[]
+  faceVerification         FaceVerification?
+  riskAssessment           RiskAssessment?
+  trishulHandoff           TrishulHandoff?
+
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+}
+
+model Document {
+  id                  String           @id @default(uuid())
+  screeningSessionId  String           @unique
+  screeningSession    ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  fileName            String
+  mimeType            String
+  fileSize            Int
+  width               Int?
+  height              Int?
+  sha256Hash          String
+  base64Data          String?
+  isPurged            Boolean          @default(false)
+  purgedAt            DateTime?
+  retentionExpiresAt  DateTime?
+  createdAt           DateTime         @default(now())
+}
+
+model OCRResult {
+  id                  String           @id @default(uuid())
+  screeningSessionId  String           @unique
+  screeningSession    ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  provider            String           @default("TESSERACT")
+  fullText            String
+  averageConfidence   Float            @default(0.0)
+  wordsCount          Int              @default(0)
+  linesCount          Int              @default(0)
+  executionTimeMs     Int              @default(0)
+  wordsJson           String?
+  createdAt           DateTime         @default(now())
+}
+
+model ExtractedField {
+  id                  String           @id @default(uuid())
+  screeningSessionId  String
+  screeningSession    ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  fieldKey            String
+  fieldLabel          String
+  rawValue            String
+  maskedValue         String
+  isSensitive         Boolean          @default(false)
+  confidence          Float            @default(0.0)
+  validationStatus    String           @default("VALID") // VALID, WARNING, INCONSISTENT
+  createdAt           DateTime         @default(now())
+}
+
+model DocumentAnalysis {
+  id                   String           @id @default(uuid())
+  screeningSessionId   String           @unique
+  screeningSession     ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  qualityScore         Float            @default(0.0)
+  blurIndex            Float            @default(0.0)
+  glareIndex           Float            @default(0.0)
+  brightnessScore      Float            @default(0.0)
+  contrastScore        Float            @default(0.0)
+  resolutionStatus     String           @default("ADEQUATE")
+  structuralIntegrity  String           @default("CONFIRMED")
+  fontConsistencyScore Float            @default(95.0)
+  layoutAlignmentScore Float            @default(92.0)
+  createdAt            DateTime         @default(now())
+}
+
+model ForensicAnomaly {
+  id                  String           @id @default(uuid())
+  screeningSessionId  String
+  screeningSession    ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  anomalyType         String
+  severity            String           @default("INFO") // INFO, MODERATE, HIGH
+  title               String
+  explanation         String
+  boundingBox         String?          // JSON { x, y, width, height }
+  confidence          Float            @default(0.0)
+  createdAt           DateTime         @default(now())
+}
+
+model FaceVerification {
+  id                  String           @id @default(uuid())
+  screeningSessionId  String           @unique
+  screeningSession    ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  documentFaceCropped String?
+  liveFaceCaptured    String?
+  similarityScore     Float            @default(0.0)
+  matchStatus         String           @default("NOT_PERFORMED") // MATCH, REVIEW_REQUIRED, NO_MATCH, NOT_PERFORMED
+  landmarkConfidence  Float            @default(0.0)
+  executedAt          DateTime         @default(now())
+}
+
+model RiskAssessment {
+  id                   String           @id @default(uuid())
+  screeningSessionId   String           @unique
+  screeningSession     ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  compositeScore       Int              @default(0)
+  riskTier             String           @default("LOW_RISK")
+  positiveSignalsJson  String           @default("[]")
+  reviewIndicatorsJson String           @default("[]")
+  calculatedAt         DateTime         @default(now())
+}
+
+model TrishulHandoff {
+  id                   String           @id @default(uuid())
+  screeningSessionId   String           @unique
+  screeningSession     ScreeningSession @relation(fields: [screeningSessionId], references: [id], onDelete: Cascade)
+  trishulTransactionId String           @unique
+  dispatchStatus       String           @default("DELIVERED") // DELIVERED, PENDING, FAILED
+  payloadHash          String
+  dispatchedAt         DateTime         @default(now())
+  responseCode         Int              @default(200)
+  ackSummary           String?
+}
+
+model ApiKey {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  keyPrefix      String
+  hashedSecret   String
+  scopes         String       @default("screenings:read,screenings:write")
+  lastUsedAt     DateTime?
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+}
+
+model AuditLog {
+  id             String       @id @default(uuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String?
+  userEmail      String?
+  action         String
+  resourceType   String
+  resourceId     String?
+  details        String?
+  ipAddress      String?      @default("127.0.0.1")
+  timestamp      DateTime     @default(now())
+}
