@@ -89,7 +89,7 @@ export async function POST(
       details: `Uploaded [${category}] document ${fileName} (Hash: ${documentResult.sha256Hash.slice(0, 12)}...) for ${application.applicationNumber}.`,
     });
 
-    return NextResponse.json({ success: true, data: documentResult });
+    return NextResponse.json({ success: true, data: documentResult }, { status: 201 });
   } catch (error) {
     console.error("[POST_APPLICATION_DOCUMENT]", error);
     return NextResponse.json(

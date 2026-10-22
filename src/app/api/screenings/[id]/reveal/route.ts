@@ -2,22 +2,46 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { recordAuditLog } from "@/lib/audit/logger";
+import { hasPermission } from "@/lib/auth/roles";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: "Unauthorized. Authentication required to reveal protected identity data." },
+        { status: 401 }
+      );
+    }
+
+    if (!hasPermission(currentUser.role, "pii:unmask")) {
+      return NextResponse.json(
+        { error: "Forbidden: Authorized Reviewer or Administrator credentials required to unmask statutory PII." },
+        { status: 403 }
+      );
+    }
+
     const { id } = params;
     const body = await req.json().catch(() => ({}));
-    const reason = body.reason || "Operational identity verification requirement";
+    const reason = body.reason?.trim();
 
-    const currentUser = await getCurrentUser();
-    // Allow Reviewer or Administrator, or logged in operator if configured
-    const userRole = currentUser?.role || "OPERATOR";
+    if (!reason || reason.length < 5) {
+      return NextResponse.json(
+        { error: "Operational justification (min 5 characters) is mandatory to unmask statutory identifiers." },
+        { status: 400 }
+      );
+    }
 
     const session = await prisma.screeningSession.findFirst({
-      where: { OR: [{ id }, { screeningId: id }] },
+      where: {
+        OR: [{ id }, { screeningId: id }],
+        organizationId: currentUser.organizationId, // Tenant boundary enforcement
+      },
       include: { extractedFields: true },
     });
 
@@ -37,12 +61,12 @@ export async function POST(
 
     await recordAuditLog({
       organizationId: session.organizationId,
-      userId: currentUser?.id,
-      userEmail: currentUser?.email || "authorized_operator",
+      userId: currentUser.id,
+      userEmail: currentUser.email,
       action: "SENSITIVE_PII_UNMASKED",
       resourceType: "SCREENING_SESSION",
       resourceId: session.screeningId,
-      details: `Operator revealed protected identifiers. Justification: ${reason}`,
+      details: `Operator [${currentUser.name} / ${currentUser.role}] unmasked protected identifiers. Justification: ${reason}`,
       ipAddress: req.headers.get("x-forwarded-for") || "127.0.0.1",
     });
 

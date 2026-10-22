@@ -23,6 +23,7 @@ export default function LandingPage() {
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [selectedRole, setSelectedRole] = useState("OPERATOR");
   const [emailInput, setEmailInput] = useState("operator@trishul-intel.org");
+  const [passwordInput, setPasswordInput] = useState("Trishul@Enterprise2026");
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -34,13 +35,14 @@ export default function LandingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: emailInput,
-          roleOverride: selectedRole,
+          password: passwordInput,
         }),
       });
       if (res.ok) {
         window.location.href = "/dashboard";
       } else {
-        alert("Authentication failed. Please verify institutional credentials.");
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || "Authentication failed. Please verify institutional credentials.");
       }
     } catch {
       alert("Sign in network error.");
@@ -305,7 +307,9 @@ export default function LandingPage() {
                 </label>
                 <input
                   type="password"
-                  defaultValue="Trishul@Enterprise2026"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  required
                   className="w-full px-3 py-2 rounded-lg bg-surface-200 border border-border text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono"
                 />
               </div>

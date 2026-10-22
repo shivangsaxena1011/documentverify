@@ -14,6 +14,11 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search")?.trim() || "";
     const documentType = searchParams.get("documentType") || "";
@@ -22,7 +27,9 @@ export async function GET(req: NextRequest) {
     const limit = parseInt(searchParams.get("limit") || "50", 10);
     const page = parseInt(searchParams.get("page") || "1", 10);
 
-    const where: any = {};
+    const where: any = {
+      organizationId: currentUser.organizationId,
+    };
 
     if (documentType && documentType !== "ALL") {
       where.documentType = documentType;
@@ -83,18 +90,12 @@ export async function POST(req: NextRequest) {
   const startTime = Date.now();
   try {
     const sessionUser = await getCurrentUser();
-    let operatorId = sessionUser?.id;
-    let organizationId = sessionUser?.organizationId;
-
-    if (!operatorId || !organizationId) {
-      const defaultUser = await prisma.user.findFirst();
-      if (defaultUser) {
-        operatorId = defaultUser.id;
-        organizationId = defaultUser.organizationId;
-      } else {
-        return NextResponse.json({ error: "Operator session unauthorized." }, { status: 401 });
-      }
+    if (!sessionUser) {
+      return NextResponse.json({ error: "Unauthorized. Operator session required." }, { status: 401 });
     }
+
+    const operatorId = sessionUser.id;
+    const organizationId = sessionUser.organizationId;
 
     let fileBuffer: Buffer | null = null;
     let fileName = "scan_capture.jpg";

@@ -28,34 +28,34 @@ import {
   HelpCircle,
 } from "lucide-react";
 
-// Pre-loaded high-fidelity statutory ID test specimens for immediate operator testing
-const SAMPLE_DOCS = [
+// Pre-loaded high-fidelity synthetic statutory ID calibration specimens for immediate testing and evaluation
+const CALIBRATION_SPECIMENS = [
   {
-    name: "PAN Card Specimen (Income Tax Dept)",
+    name: "Synthetic PAN Specimen (Income Tax Format)",
     type: "PAN_CARD",
     text: "INCOME TAX DEPARTMENT\nGOVT. OF INDIA\nPermanent Account Number Card\nABCPR8291K\nName: PRIYA NAIR\nFather's Name: RAMAN NAIR\nDate of Birth: 22/11/1992",
     simulatedQuality: { blur: 94, glare: 8, score: 92 },
   },
   {
-    name: "Aadhaar Card Specimen (UIDAI)",
+    name: "Synthetic Aadhaar Specimen (UIDAI Format)",
     type: "AADHAAR_CARD",
     text: "GOVERNMENT OF INDIA\nUNIQUE IDENTIFICATION AUTHORITY OF INDIA\nAddress: Flat 402, Green Valley Apartments, Bandra West, Mumbai 400050\nDOB: 14/08/1986\nMALE\n5482 9102 3841\nMera Aadhaar, Meri Pehchan",
     simulatedQuality: { blur: 92, glare: 12, score: 89 },
   },
   {
-    name: "Passport Specimen (ICAO 9303 MRZ)",
+    name: "Synthetic Passport Specimen (ICAO 9303 MRZ Format)",
     type: "PASSPORT",
     text: "REPUBLIC OF INDIA / PASSPORT\nType: P Country Code: IND Passport No: Z8192039\nGiven Name: AMITABH Surname: DASGUPTA\nNationality: INDIAN Sex: M Date of Birth: 12/04/1978\nP<INDDASGUPTA<<AMITABH<<<<<<<<<<<<<<<<<<<<<<\nZ8192039<9IND7804128M2804112<<<<<<<<<<<<<<<4",
     simulatedQuality: { blur: 90, glare: 14, score: 88 },
   },
   {
-    name: "Driving Licence Specimen (MoRTH)",
+    name: "Synthetic Driving Licence Specimen (MoRTH Format)",
     type: "DRIVING_LICENCE",
     text: "UNION OF INDIA / DRIVING LICENCE\nTRANSPORT DEPARTMENT\nDL NO: DL-0420180029183\nName: MANPREET SINGH\nDOB: 10/05/1988\nValid Till: 15/06/2038\nCOV: LMV, MCWG",
     simulatedQuality: { blur: 91, glare: 10, score: 90 },
   },
   {
-    name: "Voter ID Specimen (ECI EPIC)",
+    name: "Synthetic Voter ID Specimen (ECI EPIC Format)",
     type: "VOTER_ID",
     text: "ELECTION COMMISSION OF INDIA\nELECTOR PHOTO IDENTITY CARD\nWBF2910482\nElector's Name: KAVITA MEHTA\nFather's Name: SURESH MEHTA\nSex: FEMALE Age: 34",
     simulatedQuality: { blur: 93, glare: 9, score: 91 },
@@ -150,7 +150,7 @@ export default function ScannerPage() {
     reader.readAsDataURL(file);
   };
 
-  const loadSampleSpecimen = (specimen: typeof SAMPLE_DOCS[0]) => {
+  const loadSampleSpecimen = (specimen: typeof CALIBRATION_SPECIMENS[0]) => {
     // Generate a clean rendered document canvas image
     const canvas = document.createElement("canvas");
     canvas.width = 1000;
@@ -417,12 +417,12 @@ export default function ScannerPage() {
             )}
           </div>
 
-          {/* Quick Institutional Test Specimens */}
+          {/* Quick Institutional Calibration Specimens */}
           <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
             <span className="text-[10px] uppercase font-mono text-slate-500 mr-1">
-              Test Presets:
+              Calibration Presets:
             </span>
-            {SAMPLE_DOCS.map((doc, idx) => (
+            {CALIBRATION_SPECIMENS.map((doc, idx) => (
               <button
                 key={idx}
                 onClick={() => loadSampleSpecimen(doc)}

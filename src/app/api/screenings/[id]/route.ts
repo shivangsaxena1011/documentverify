@@ -2,16 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { recordAuditLog } from "@/lib/audit/logger";
+import { hasPermission } from "@/lib/auth/roles";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
     const { id } = params;
     const session = await prisma.screeningSession.findFirst({
       where: {
         OR: [{ id }, { screeningId: id }],
+        organizationId: currentUser.organizationId, // Tenant boundary enforcement
       },
       include: {
         operator: { select: { name: true, email: true, role: true } },
@@ -46,21 +55,28 @@ export async function DELETE(
     const { id } = params;
     const currentUser = await getCurrentUser();
 
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
+    // Role check: Strict Administrator authorization required to purge or delete records
+    if (!hasPermission(currentUser.role, "screenings:delete") && currentUser.role !== "ADMINISTRATOR") {
+      return NextResponse.json(
+        { error: "Forbidden: Administrator role required to purge screening records." },
+        { status: 403 }
+      );
+    }
+
     const session = await prisma.screeningSession.findFirst({
-      where: { OR: [{ id }, { screeningId: id }] },
+      where: {
+        OR: [{ id }, { screeningId: id }],
+        organizationId: currentUser.organizationId, // Tenant boundary enforcement
+      },
       include: { document: true },
     });
 
     if (!session) {
       return NextResponse.json({ error: "Screening record not found." }, { status: 404 });
-    }
-
-    // Role check: Only REVIEWER or ADMINISTRATOR can delete or purge
-    if (currentUser && !["REVIEWER", "ADMINISTRATOR"].includes(currentUser.role)) {
-      return NextResponse.json(
-        { error: "Insufficient authorization to purge screening records. Administrator or Reviewer role required." },
-        { status: 403 }
-      );
     }
 
     // Purge document image according to retention policy
@@ -77,12 +93,12 @@ export async function DELETE(
 
     await recordAuditLog({
       organizationId: session.organizationId,
-      userId: currentUser?.id,
-      userEmail: currentUser?.email,
+      userId: currentUser.id,
+      userEmail: currentUser.email,
       action: "DOCUMENT_IMAGE_PURGED",
       resourceType: "SCREENING_SESSION",
       resourceId: session.screeningId,
-      details: "Document image payload irreversibly purged from system storage per data retention protocol.",
+      details: `Administrator ${currentUser.name} purged document payload per organizational retention protocol.`,
       ipAddress: req.headers.get("x-forwarded-for") || "127.0.0.1",
     });
 

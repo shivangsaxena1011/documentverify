@@ -108,10 +108,11 @@ export class TrishulIntegrationClient {
 
     const trishulTransactionId = `TRISHUL-TX-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-    // Try transmitting over network; if offline/sandbox internal endpoint, handle gracefully
-    let ackMessage = "Screening evidence cryptographically sealed and accepted into TRISHUL Intelligence Network.";
-    let dispatchStatus = "DELIVERED" as const;
-    let responseCode = 200;
+    // Transmit over network with honest status reporting
+    let ackMessage = "Central TRISHUL Intelligence Hub offline. Evidence record cryptographically signed and queued for transmission.";
+    let dispatchStatus: "DELIVERED" | "QUEUED" | "FAILED" = "QUEUED";
+    let responseCode = 503;
+    let isDelivered = false;
 
     try {
       const response = await fetch(this.endpoint, {
@@ -123,16 +124,24 @@ export class TrishulIntegrationClient {
           "X-Trishul-Signature": integrityHash,
         },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(3000), // Quick timeout for graceful fallback
+        signal: AbortSignal.timeout(3000), // Quick timeout
       });
 
       if (response.ok) {
         const json = await response.json();
-        ackMessage = json.message || ackMessage;
+        ackMessage = json.message || "Screening evidence cryptographically sealed and accepted into TRISHUL Intelligence Network.";
+        dispatchStatus = "DELIVERED";
+        responseCode = response.status;
+        isDelivered = true;
+      } else {
+        responseCode = response.status;
+        ackMessage = `TRISHUL central node returned status HTTP ${response.status}. Handoff queued locally.`;
       }
     } catch {
-      // In isolated/air-gapped or test environments, record institutional evidence receipt
-      ackMessage = "Secured to local TRISHUL transmission buffer with valid cryptographic signature.";
+      // Offline / standalone mode - record truthful queued status
+      dispatchStatus = "QUEUED";
+      responseCode = 503;
+      ackMessage = "TRISHUL central network gateway unreachable. Payload cryptographically buffered in local audit queue.";
     }
 
     // Persist or update TrishulHandoff record
@@ -157,7 +166,7 @@ export class TrishulIntegrationClient {
     });
 
     return {
-      success: true,
+      success: isDelivered,
       trishulTransactionId,
       status: dispatchStatus,
       timestamp: new Date().toISOString(),

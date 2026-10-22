@@ -185,9 +185,43 @@ assert.ok(
 );
 console.log("✔ Test 7 Passed: Scoring disclaimer enforces preliminary decision support boundary.");
 
+// -------------------------------------------------------------
+// Test 8: JWT Cryptographic Token Verification & Anti-Tampering
+// -------------------------------------------------------------
+console.log("Running Test 8: Session Token Cryptography & Anti-Tampering...");
+import { createToken, verifyToken } from "../src/lib/auth/session";
+
+const testSessionPayload = {
+  id: "test-user-001",
+  email: "admin@trishul-intel.org",
+  name: "Dr. A. Sharma",
+  role: "ADMINISTRATOR" as const,
+  organizationId: "org-aicte-reg-01",
+  organizationName: "AICTE Regulatory Directorate",
+};
+
+const validToken = createToken(testSessionPayload);
+assert.ok(validToken && validToken.includes("."), "Token must be a valid JWT with 3 parts");
+
+const verifiedUser = verifyToken(validToken);
+assert.ok(verifiedUser !== null, "Valid token must verify successfully");
+assert.strictEqual(verifiedUser?.email, testSessionPayload.email);
+assert.strictEqual(verifiedUser?.role, "ADMINISTRATOR");
+assert.strictEqual(verifiedUser?.organizationId, testSessionPayload.organizationId);
+
+// Tamper test: modify payload to forge role
+const parts = validToken.split(".");
+const tamperedBody = Buffer.from(
+  JSON.stringify({ ...testSessionPayload, role: "SUPER_GOD_MODE" })
+).toString("base64url");
+const tamperedToken = `${parts[0]}.${tamperedBody}.${parts[2]}`;
+const tamperedResult = verifyToken(tamperedToken);
+assert.strictEqual(tamperedResult, null, "Tampered token signature mismatch must be rejected with null");
+console.log("✔ Test 8 Passed: Cryptographic JWT tamper-proofing & signature verification verified.");
+
 // Run async tests
 runSourceAdapterTest().then(() => {
   console.log("\n========================================================");
-  console.log("🎉 ALL 7 AICTE PS 26261 REGULATORY TESTS PASSED SUCCESSFULLY!");
+  console.log("🎉 ALL 8 TRISHUL + AICTE PS 26261 TESTS PASSED SUCCESSFULLY!");
   console.log("========================================================\n");
 });

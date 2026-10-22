@@ -9,6 +9,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
     const { id } = params;
     const body = await req.json();
     const { selfieImage } = body;
@@ -18,7 +23,10 @@ export async function POST(
     }
 
     const session = await prisma.screeningSession.findFirst({
-      where: { OR: [{ id }, { screeningId: id }] },
+      where: {
+        OR: [{ id }, { screeningId: id }],
+        organizationId: currentUser.organizationId,
+      },
       include: { document: true, riskAssessment: true },
     });
 
@@ -73,7 +81,6 @@ export async function POST(
       },
     });
 
-    const currentUser = await getCurrentUser();
     await recordAuditLog({
       organizationId: session.organizationId,
       userId: currentUser?.id,

@@ -22,7 +22,7 @@ export default function VerificationGatewayPage() {
       status: "SANDBOX_ACTIVE",
       type: "Institutional Certificate Required",
       authStandard: "e-KYC 2.5 API with HSM Signing",
-      desc: "Requires institutional Sub-AUA agreement with UIDAI. Operates in local cryptographic simulation mode when unbonded.",
+      desc: "Requires institutional Sub-AUA agreement with UIDAI. Operates in disconnected / manual-review mode when unconfigured.",
     },
     {
       name: "Income Tax Department / NSDL PAN Verification",

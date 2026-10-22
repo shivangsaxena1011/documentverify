@@ -34,7 +34,8 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { actionType, observationNotes } = body;
+    const actionType = body.actionType || body.action;
+    const observationNotes = body.observationNotes || body.notes;
 
     let nextStatus = application.validationStatus;
     let auditAction = "REVIEWER_OBSERVATION_RECORDED";

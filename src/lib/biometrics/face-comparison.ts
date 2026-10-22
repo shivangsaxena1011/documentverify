@@ -1,6 +1,6 @@
 export interface FaceComparisonResult {
   similarityScore: number; // 0 to 100
-  matchStatus: "MATCH" | "REVIEW_REQUIRED" | "NO_MATCH";
+  matchStatus: "MATCH" | "REVIEW_REQUIRED" | "NO_MATCH" | "NOT_PERFORMED";
   landmarkConfidence: number;
   documentFaceDetected: boolean;
   liveFaceDetected: boolean;
@@ -9,8 +9,8 @@ export interface FaceComparisonResult {
 
 export class FaceVerificationEngine {
   /**
-   * Compares document portrait against live captured selfie.
-   * Performs pixel feature distribution and aspect ratio correlation.
+   * Evaluates face verification requirements between document portrait and live selfie.
+   * Truthfully avoids fabricating fake match scores when dedicated biometric neural vision weights are absent.
    */
   static compareFaces(
     documentImageB64?: string,
@@ -19,7 +19,7 @@ export class FaceVerificationEngine {
     if (!documentImageB64 || !liveImageB64) {
       return {
         similarityScore: 0,
-        matchStatus: "NO_MATCH",
+        matchStatus: "NOT_PERFORMED",
         landmarkConfidence: 0,
         documentFaceDetected: false,
         liveFaceDetected: false,
@@ -27,40 +27,20 @@ export class FaceVerificationEngine {
       };
     }
 
-    // In a production environment with GPU/WASM face-api, deep neural embeddings (e.g. 128-d or 512-d ArcFace / FaceNet)
-    // are computed. Here we implement a robust normalized feature comparison based on image entropy and structural correlation:
-    const docLen = documentImageB64.length;
-    const liveLen = liveImageB64.length;
-
-    // Deterministic yet realistic similarity score modeling
-    const ratio = Math.min(docLen, liveLen) / Math.max(docLen, liveLen);
-    const baseScore = 78 + Math.round(ratio * 16);
-    const similarityScore = Math.min(97, Math.max(45, baseScore));
-
-    const matchStatus =
-      similarityScore >= 80
-        ? "MATCH"
-        : similarityScore >= 60
-        ? "REVIEW_REQUIRED"
-        : "NO_MATCH";
-
-    const landmarkConfidence = Math.min(98, Math.max(70, Math.round(similarityScore * 0.95)));
-
-    const notes: string[] = [
-      "Facial bounding coordinates localized in document portrait region.",
-      "Live operator selfie lighting and frontal pose verified.",
-      similarityScore >= 80
-        ? "High confidence facial feature vector correlation observed."
-        : "Facial similarity within review threshold; secondary manual visual confirmation recommended.",
-    ];
-
+    // Truthful failure/manual review state: A dedicated GPU/WASM facial embedding pipeline (ArcFace / FaceNet)
+    // is required for biometric matching. In standalone deployments without neural model weights,
+    // the system requires manual reviewer visual confirmation.
     return {
-      similarityScore,
-      matchStatus,
-      landmarkConfidence,
+      similarityScore: 0,
+      matchStatus: "REVIEW_REQUIRED",
+      landmarkConfidence: 0,
       documentFaceDetected: true,
       liveFaceDetected: true,
-      notes,
+      notes: [
+        "Biometric facial embedding model is unconfigured in current deployment.",
+        "Facial match status flagged for mandatory manual inspector scrutiny.",
+        "Do not automate biometric clearance without authorized facial landmark model integration.",
+      ],
     };
   }
 }

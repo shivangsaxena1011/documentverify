@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { ensureDatabaseSeeded } from "@/lib/seed";
+import { getCurrentUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await ensureDatabaseSeeded();
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
+    const orgId = currentUser.organizationId;
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
@@ -20,12 +24,13 @@ export async function GET() {
       allSessions,
       ocrResults,
     ] = await Promise.all([
-      prisma.screeningSession.count(),
-      prisma.screeningSession.count({ where: { createdAt: { gte: todayStart } } }),
-      prisma.screeningSession.count({ where: { riskTier: "REVIEW_REQUIRED" } }),
-      prisma.screeningSession.count({ where: { riskTier: "HIGH_RISK" } }),
-      prisma.screeningSession.count({ where: { riskTier: "LOW_RISK" } }),
+      prisma.screeningSession.count({ where: { organizationId: orgId } }),
+      prisma.screeningSession.count({ where: { organizationId: orgId, createdAt: { gte: todayStart } } }),
+      prisma.screeningSession.count({ where: { organizationId: orgId, riskTier: "REVIEW_REQUIRED" } }),
+      prisma.screeningSession.count({ where: { organizationId: orgId, riskTier: "HIGH_RISK" } }),
+      prisma.screeningSession.count({ where: { organizationId: orgId, riskTier: "LOW_RISK" } }),
       prisma.screeningSession.findMany({
+        where: { organizationId: orgId },
         select: {
           documentType: true,
           riskTier: true,
@@ -34,6 +39,7 @@ export async function GET() {
         },
       }),
       prisma.oCRResult.findMany({
+        where: { screeningSession: { organizationId: orgId } },
         select: { averageConfidence: true },
       }),
     ]);
@@ -75,6 +81,19 @@ export async function GET() {
       }
     });
 
+    const isTrishulConfigured = Boolean(
+      process.env.TRISHUL_CENTRAL_ENDPOINT &&
+      process.env.TRISHUL_API_KEY &&
+      !process.env.TRISHUL_API_KEY.includes("placeholder") &&
+      !process.env.TRISHUL_CENTRAL_ENDPOINT.includes(".internal")
+    );
+
+    const isGatewayConfigured = Boolean(
+      process.env.VERIFICATION_GATEWAY_URL &&
+      process.env.VERIFICATION_GATEWAY_KEY &&
+      !process.env.VERIFICATION_GATEWAY_URL.includes(".internal")
+    );
+
     return NextResponse.json({
       success: true,
       data: {
@@ -91,9 +110,9 @@ export async function GET() {
           ocrEngine: "OPERATIONAL",
           classifierEngine: "OPERATIONAL",
           forensicEngine: "OPERATIONAL",
-          biometricsModule: "OPERATIONAL",
-          trishulHubGateway: "CONNECTED",
-          verificationGateway: "SANDBOX_ACTIVE", // Honest institutional state
+          biometricsModule: "MANUAL_REVIEW_REQUIRED", // Truthful state without GPU/WASM model
+          trishulHubGateway: isTrishulConfigured ? "CONNECTED" : "OFFLINE_STANDALONE",
+          verificationGateway: isGatewayConfigured ? "OPERATIONAL" : "DISCONNECTED_MANUAL_REVIEW",
         },
       },
     });

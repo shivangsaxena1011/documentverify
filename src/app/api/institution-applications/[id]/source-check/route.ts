@@ -27,7 +27,12 @@ export async function POST(
       return NextResponse.json({ error: "Application case not found" }, { status: 404 });
     }
 
-    const body = await req.json();
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {
+      body = {};
+    }
     const { target, manualDecision } = body;
 
     // Check for manual verification action by reviewer
@@ -86,7 +91,11 @@ export async function POST(
         verificationTarget: instResult.verificationTarget,
         status: instResult.status,
         summary: instResult.summary,
-        detailsJson: JSON.stringify(instResult.details),
+        detailsJson: JSON.stringify({
+          ...instResult.details,
+          isConfigured: instResult.isConfigured,
+          requiresManualReview: instResult.requiresManualReview,
+        }),
         verifiedBy: "SYSTEM_GATEWAY",
       },
     });
@@ -106,7 +115,11 @@ export async function POST(
           verificationTarget: terResult.verificationTarget,
           status: terResult.status,
           summary: terResult.summary,
-          detailsJson: JSON.stringify(terResult.details),
+          detailsJson: JSON.stringify({
+            ...terResult.details,
+            isConfigured: terResult.isConfigured,
+            requiresManualReview: terResult.requiresManualReview,
+          }),
           verifiedBy: "SYSTEM_GATEWAY",
         },
       });

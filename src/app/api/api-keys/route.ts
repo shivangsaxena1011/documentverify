@@ -2,11 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth/session";
 import { recordAuditLog } from "@/lib/audit/logger";
+import { hasPermission } from "@/lib/auth/roles";
 import crypto from "crypto";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
+    if (currentUser.role !== "ADMINISTRATOR" && !hasPermission(currentUser.role, "api_keys:manage")) {
+      return NextResponse.json(
+        { error: "Forbidden: Administrator role required to view API key infrastructure." },
+        { status: 403 }
+      );
+    }
+
     const keys = await prisma.apiKey.findMany({
+      where: { organizationId: currentUser.organizationId },
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -27,16 +43,23 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
+    if (currentUser.role !== "ADMINISTRATOR" && !hasPermission(currentUser.role, "api_keys:manage")) {
+      return NextResponse.json(
+        { error: "Forbidden: Administrator credentials required to provision API keys." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const { name, scopes } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Key name/purpose is required." }, { status: 400 });
-    }
-
-    const org = await prisma.organization.findFirst();
-    if (!org) {
-      return NextResponse.json({ error: "Organization not found." }, { status: 404 });
     }
 
     // Generate random secret
@@ -46,7 +69,7 @@ export async function POST(req: NextRequest) {
 
     const newKey = await prisma.apiKey.create({
       data: {
-        organizationId: org.id,
+        organizationId: currentUser.organizationId,
         name,
         keyPrefix,
         hashedSecret,
@@ -54,14 +77,14 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const currentUser = await getCurrentUser();
     await recordAuditLog({
-      organizationId: org.id,
-      userId: currentUser?.id,
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      userEmail: currentUser.email,
       action: "API_KEY_GENERATED",
       resourceType: "API_KEY",
       resourceId: newKey.id,
-      details: `Generated API key '${name}' with scopes: ${scopes || "default"}.`,
+      details: `Administrator ${currentUser.name} generated API key '${name}'.`,
       ipAddress: req.headers.get("x-forwarded-for") || "127.0.0.1",
     });
 
@@ -84,6 +107,18 @@ export async function POST(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const currentUser = await getCurrentUser();
+    if (!currentUser) {
+      return NextResponse.json({ error: "Unauthorized. Session required." }, { status: 401 });
+    }
+
+    if (currentUser.role !== "ADMINISTRATOR" && !hasPermission(currentUser.role, "api_keys:manage")) {
+      return NextResponse.json(
+        { error: "Forbidden: Administrator credentials required to revoke API keys." },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -91,7 +126,13 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "API Key ID required." }, { status: 400 });
     }
 
-    const key = await prisma.apiKey.findUnique({ where: { id } });
+    const key = await prisma.apiKey.findFirst({
+      where: {
+        id,
+        organizationId: currentUser.organizationId,
+      },
+    });
+
     if (!key) {
       return NextResponse.json({ error: "API key not found." }, { status: 404 });
     }
@@ -101,10 +142,10 @@ export async function DELETE(req: NextRequest) {
       data: { isActive: false },
     });
 
-    const currentUser = await getCurrentUser();
     await recordAuditLog({
-      organizationId: key.organizationId,
-      userId: currentUser?.id,
+      organizationId: currentUser.organizationId,
+      userId: currentUser.id,
+      userEmail: currentUser.email,
       action: "API_KEY_REVOKED",
       resourceType: "API_KEY",
       resourceId: key.id,

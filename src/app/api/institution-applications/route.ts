@@ -199,7 +199,7 @@ export async function POST(req: NextRequest) {
       details: `Created institutional application case for ${institutionName} (${applicationCategory}).`,
     });
 
-    return NextResponse.json({ success: true, data: application });
+    return NextResponse.json({ success: true, data: application }, { status: 201 });
   } catch (error) {
     console.error("[POST_INSTITUTION_APPLICATIONS]", error);
     return NextResponse.json({ error: "Failed to create institutional application" }, { status: 500 });
