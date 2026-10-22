@@ -16,6 +16,7 @@ import {
   Layers,
   ArrowRight,
   Search,
+  GraduationCap,
 } from "lucide-react";
 
 interface MetricsData {
@@ -97,6 +98,13 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-3">
             <Link
+              href="/applications"
+              className="px-3.5 py-2 rounded-lg bg-blue-900/30 hover:bg-blue-900/50 border border-blue-700/50 text-xs font-semibold text-blue-300 transition-colors flex items-center gap-1.5"
+            >
+              <GraduationCap className="h-4 w-4 text-blue-400" />
+              <span>Institutional Applications</span>
+            </Link>
+            <Link
               href="/documents"
               className="px-3.5 py-2 rounded-lg bg-surface-100 hover:bg-surface-50 border border-border text-xs font-semibold text-slate-300 transition-colors"
             >
@@ -165,6 +173,35 @@ export default function DashboardPage() {
               OCR accuracy avg: <span className="text-slate-300 font-mono">{metrics?.avgOcrAccuracy || 92}%</span>
             </p>
           </div>
+        </div>
+
+        {/* AICTE Institutional Applications Spotlight */}
+        <div className="p-4 rounded-xl bg-gradient-to-r from-blue-950/40 via-surface-100 to-indigo-950/30 border border-blue-900/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30 shrink-0">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-900 text-blue-300 border border-blue-700">
+                  AICTE PS 26261
+                </span>
+                <h3 className="text-xs font-bold text-white tracking-tight">
+                  Institutional Applications & Regulatory Compliance Module
+                </h3>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Multi-factor approval validation, statutory checklist engine, and evidence authentication for AICTE institutional applications.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/applications"
+            className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-md shadow-blue-900/20 transition-all shrink-0"
+          >
+            <span>Open Applications Workspace</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
         {/* Middle Section: Document Classification Breakdown & System Health */}

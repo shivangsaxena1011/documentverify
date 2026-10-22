@@ -15,6 +15,7 @@ import {
   Users,
   Settings,
   ShieldCheck,
+  GraduationCap,
   ChevronRight,
   ExternalLink,
 } from "lucide-react";
@@ -32,6 +33,7 @@ export function Sidebar() {
   const mainNav: NavItem[] = [
     { label: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { label: "New Screening", href: "/scanner", icon: Scan, badge: "Live" },
+    { label: "Applications", href: "/applications", icon: GraduationCap, badge: "AICTE" },
     { label: "Documents", href: "/documents", icon: Files },
     { label: "Verification", href: "/verification", icon: CheckSquare },
     { label: "Reports", href: "/reports", icon: FileBarChart },

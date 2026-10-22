@@ -8,16 +8,17 @@ generator client {
 }
 
 model Organization {
-  id          String   @id @default(uuid())
-  name        String
-  code        String   @unique
-  orgType     String   @default("ENTERPRISE")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  users       User[]
-  apiKeys     ApiKey[]
-  auditLogs   AuditLog[]
-  screenings  ScreeningSession[]
+  id                      String                  @id @default(uuid())
+  name                    String
+  code                    String                  @unique
+  orgType                 String                  @default("ENTERPRISE")
+  createdAt               DateTime                @default(now())
+  updatedAt               DateTime                @updatedAt
+  users                   User[]
+  apiKeys                 ApiKey[]
+  auditLogs               AuditLog[]
+  screenings              ScreeningSession[]
+  institutionApplications InstitutionApplication[]
 }
 
 model User {
@@ -196,4 +197,124 @@ model AuditLog {
   details        String?
   ipAddress      String?      @default("127.0.0.1")
   timestamp      DateTime     @default(now())
+}
+
+// =========================================================================
+// AICTE PS 26261: Institutional Applications & Regulatory Compliance Models
+// =========================================================================
+
+model InstitutionApplication {
+  id                      String                    @id @default(uuid())
+  applicationNumber       String                    @unique // e.g. APP-2026-AICTE-09124
+  institutionName         String
+  permanentId             String                    // AICTE Permanent ID (e.g. 1-432901928)
+  applicationCategory     String                    // EXTENSION_OF_APPROVAL, NEW_PROGRAMME, INTAKE_CHANGE, APPROVAL_CHANGE
+  academicYear            String                    @default("2026-2027")
+  previousApprovalRef     String?                   // e.g. F.No. AICTE/AB/2025/1-432901928
+  previousApprovalStatus  String                    @default("APPROVED") // APPROVED, CONDITIONALLY_APPROVED, NOT_APPLICABLE, REJECTED
+  institutionRecordStatus String                    @default("ACTIVE") // ACTIVE, DEFUNCT, PROVISIONAL, UNVERIFIED
+  terFeeStatus            String                    @default("PENDING") // PAID, PENDING, EXEMPTED, DEFICIENT
+  terFeeReference         String?
+  approvedIntake          Int                       @default(0)
+  requestedIntake         Int                       @default(0)
+  facultyCount            Int                       @default(0)
+  requiredFacultyCount    Int                       @default(0)
+  infrastructureSubmitted Boolean                   @default(false)
+  reviewerNotes           String?
+  validationStatus        String                    @default("DRAFT") // DRAFT, SUBMITTED, VALIDATION_PENDING, RECTIFICATION_REQUESTED, OFFICIAL_REVIEW_REQUIRED, READY_FOR_OFFICIAL_SCRUTINY, UNDER_REVIEW, CLOSED
+  complianceScore         Int                       @default(0) // 0-100 preliminary advisory score
+  rulesetVersion          String                    @default("APH-2024-27-V1")
+  lastValidatedAt         DateTime?
+  
+  organizationId          String
+  organization            Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creatorId               String?
+
+  documents               ApplicationDocument[]
+  findings                ValidationFinding[]
+  sourceChecks            SourceVerificationRecord[]
+  infrastructureReviews   InfrastructureReview[]
+
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+
+  @@index([organizationId, validationStatus])
+  @@index([permanentId])
+}
+
+model ApplicationDocument {
+  id             String                 @id @default(uuid())
+  applicationId  String
+  application    InstitutionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  category       String                 // AFFIDAVIT, PREVIOUS_EOA, ACCREDITATION_CERTIFICATE, NOC_PERMISSION, FACULTY_DECLARATION, PROGRAMME_INTAKE_EVIDENCE, TER_FEE_RECEIPT, INFRASTRUCTURE_EVIDENCE, LEASE_PROPERTY_EVIDENCE, OTHER
+  fileName       String
+  mimeType       String
+  fileSize       Int
+  sha256Hash     String
+  storageKey     String?
+  base64Data     String?                // Encapsulated data (only accessed on explicit view)
+  issueDate      DateTime?
+  expiryDate     DateTime?
+  issuer         String?
+  referenceNumber String?
+  ocrStatus      String                 @default("PENDING") // PENDING, EXTRACTED, UNAVAILABLE_MANUAL_REVIEW, FAILED
+  ocrText        String?
+  ocrConfidence  Float?
+  duplicateOfId  String?                // Id of earlier document with identical SHA-256 hash
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([applicationId, category])
+  @@index([sha256Hash])
+}
+
+model ValidationFinding {
+  id                  String                 @id @default(uuid())
+  applicationId       String
+  application         InstitutionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  ruleId              String                 // e.g. RULE_MANDATORY_DOCS, RULE_DOC_EXPIRY, RULE_INTAKE_FACULTY_RATIO
+  ruleSource          String                 // e.g. AICTE Approval Process Handbook (APH) 2024-27, Ch 2
+  rulesetVersion      String                 @default("APH-2024-27-V1")
+  severity            String                 // CRITICAL, HIGH, MEDIUM, LOW, ADVISORY
+  status              String                 // FAILED, PASSED, WARNING, MANUAL_REVIEW_REQUIRED, PROVISIONAL
+  title               String
+  reason              String
+  documentReference   String?
+  recommendedNextStep String
+  createdAt           DateTime               @default(now())
+
+  @@index([applicationId, severity])
+}
+
+model SourceVerificationRecord {
+  id                 String                 @id @default(uuid())
+  applicationId      String
+  application        InstitutionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  documentId         String?
+  sourceProvider     String                 // AICTE Portal Gateway, DigiLocker / NAD, State Higher Ed Portal
+  verificationTarget String                 // INSTITUTION_RECORD, TER_PAYMENT, EOA_RECORD, ACCREDITATION
+  status             String                 // VERIFIED, MISMATCH_DETECTED, EXPIRED, PENDING, SOURCE_UNAVAILABLE, MANUAL_REVIEW_REQUIRED
+  summary            String
+  detailsJson        String?
+  verifiedBy         String?                // e.g. SYSTEM_GATEWAY or User Email
+  verifiedAt         DateTime               @default(now())
+
+  @@index([applicationId])
+}
+
+model InfrastructureReview {
+  id             String                 @id @default(uuid())
+  applicationId  String
+  application    InstitutionApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  documentId     String?
+  evidenceType   String                 // CLASSROOM_LAB_PHOTO, FLOOR_PLAN_BLUEPRINT, BARRIER_FREE_ACCESS, SAFETY_CERTIFICATE
+  observations   String
+  evidenceGaps   String?
+  reviewStatus   String                 @default("PENDING_REVIEW") // SATISFACTORY, DEFICIENCY_OBSERVED, PHYSICAL_INSPECTION_RECOMMENDED, PENDING_REVIEW
+  reviewerId     String?
+  reviewerName   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime               @default(now())
+
+  @@index([applicationId])
 }

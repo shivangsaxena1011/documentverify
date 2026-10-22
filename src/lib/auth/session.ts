@@ -3,16 +3,31 @@ import { cookies } from "next/headers";
 import { SessionUser, UserRole } from "./roles";
 import { prisma } from "../db";
 
-const JWT_SECRET = process.env.JWT_SECRET || "trishul_enterprise_jwt_sec_8f9024cba1207e";
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+  if (secret && secret.trim().length >= 16) {
+    return secret;
+  }
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "FATAL: Missing or insecure JWT_SECRET environment variable in production. " +
+      "Refusing to boot session auth without an explicit 32+ character JWT_SECRET."
+    );
+  }
+  // Local development / testing fallback ONLY
+  return "dev_local_only_insecure_jwt_secret_change_in_production_key";
+}
+
 const COOKIE_NAME = "trishul_session_token";
 
 export function createToken(payload: SessionUser): string {
+  const secret = getJwtSecret();
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const now = Math.floor(Date.now() / 1000);
   const exp = now + 12 * 3600; // 12 hours
   const body = Buffer.from(JSON.stringify({ ...payload, iat: now, exp })).toString("base64url");
   const signature = crypto
-    .createHmac("sha256", JWT_SECRET)
+    .createHmac("sha256", secret)
     .update(`${header}.${body}`)
     .digest("base64url");
   return `${header}.${body}.${signature}`;
@@ -23,8 +38,9 @@ export function verifyToken(token: string): SessionUser | null {
     const parts = token.split(".");
     if (parts.length !== 3) return null;
     const [header, body, signature] = parts;
+    const secret = getJwtSecret();
     const expectedSig = crypto
-      .createHmac("sha256", JWT_SECRET)
+      .createHmac("sha256", secret)
       .update(`${header}.${body}`)
       .digest("base64url");
 

@@ -8,6 +8,7 @@
     "build": "node scripts/build.js",
     "start": "next start",
     "lint": "next lint",
+    "test": "npx tsx tests/aicte-rules.test.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
