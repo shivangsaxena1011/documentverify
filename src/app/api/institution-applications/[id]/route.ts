@@ -17,7 +17,7 @@ export async function GET(
 
     const application = await prisma.institutionApplication.findFirst({
       where: {
-        id: params.id,
+        OR: [{ id: params.id }, { applicationNumber: params.id }],
         organizationId: user.organizationId,
       },
       include: {
