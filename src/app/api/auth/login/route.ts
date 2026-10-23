@@ -1,3 +1,4 @@
+import { ensureDatabaseSeeded } from "@/lib/seed";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { createToken, getSessionCookieOptions } from "@/lib/auth/session";
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: email.trim().toLowerCase() },
       include: { organization: true },
     });

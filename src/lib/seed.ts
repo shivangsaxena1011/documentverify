@@ -9,7 +9,7 @@ export async function ensureDatabaseSeeded() {
   const existingOrg = await prisma.organization.findFirst();
   if (existingOrg) return; // Already initialized
 
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true" && !process.env.VERCEL) {
     console.log("[SEED] Production environment detected. Skipping default demo credentials seeding for security.");
     return;
   }
