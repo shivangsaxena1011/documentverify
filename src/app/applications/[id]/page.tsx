@@ -148,17 +148,31 @@ export default function ApplicationDetailPage() {
   const [expandedOcr, setExpandedOcr] = useState<Record<string, boolean>>({});
   const [copiedHash, setCopiedHash] = useState<string | null>(null);
 
+  const [loadError, setLoadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const fetchApplication = async () => {
     try {
       const res = await fetch(`/api/institution-applications/${id}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          setLoadError("Unauthorized: Please sign in with an authorized institutional operator session.");
+        } else if (res.status === 404) {
+          setLoadError(`Institutional application docket '${id}' was not found in the current organization.`);
+        } else {
+          setLoadError("Failed to retrieve application docket. Please try again.");
+        }
+        return;
+      }
       const json = await res.json();
       if (json.success) {
         setApplication(json.data);
+      } else {
+        setLoadError(json.error || "Failed to load application details.");
       }
     } catch (err) {
       console.error("Failed to load application details", err);
+      setLoadError("Network error while connecting to application docket service.");
     } finally {
       setLoading(false);
     }
@@ -357,12 +371,36 @@ export default function ApplicationDetailPage() {
     setTimeout(() => setCopiedHash(null), 2000);
   };
 
-  if (loading || !application) {
+  if (loading) {
     return (
       <AppShell>
         <div className="p-16 text-center text-slate-400">
           <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-3 text-blue-400" />
           <p className="text-sm">Retrieving institutional docket and regulatory evidence...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (loadError || !application) {
+    return (
+      <AppShell>
+        <div className="p-12 max-w-lg mx-auto text-center space-y-4">
+          <div className="h-14 w-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <h2 className="text-lg font-bold text-white">Application Docket Unavailable</h2>
+          <p className="text-xs text-slate-400 leading-relaxed">
+            {loadError || "The requested application docket could not be retrieved or does not exist."}
+          </p>
+          <div className="pt-2 flex items-center justify-center gap-3">
+            <Link
+              href="/applications"
+              className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-colors"
+            >
+              Return to Applications List
+            </Link>
+          </div>
         </div>
       </AppShell>
     );

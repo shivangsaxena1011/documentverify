@@ -325,7 +325,7 @@ export default function LandingPage() {
                       key={role}
                       onClick={() => {
                         setSelectedRole(role);
-                        setEmailInput(`${role.toLowerCase()}@trishul-intel.org`);
+                        setEmailInput(role === "ADMINISTRATOR" ? "admin@trishul-intel.org" : `${role.toLowerCase()}@trishul-intel.org`);
                       }}
                       className={`px-3 py-2 rounded-lg border text-xs font-mono font-medium transition-all text-left ${
                         selectedRole === role

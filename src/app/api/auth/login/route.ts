@@ -16,6 +16,10 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { email, password } = body;
+    let normalizedEmail = (email || "").trim().toLowerCase();
+    if (normalizedEmail === "administrator@trishul-intel.org") {
+      normalizedEmail = "admin@trishul-intel.org";
+    }
 
     if (!email || !password) {
       return NextResponse.json(
@@ -25,7 +29,7 @@ export async function POST(req: NextRequest) {
     }
 
     let user = await prisma.user.findUnique({
-      where: { email: email.trim().toLowerCase() },
+      where: { email: normalizedEmail },
       include: { organization: true },
     });
 

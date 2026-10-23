@@ -28,15 +28,7 @@ interface UserProfile {
 
 export function Navbar() {
   const pathname = usePathname();
-  const [user, setUser] = useState<UserProfile>({
-    name: "Shiva Verma",
-    email: "operator@trishul-intel.org",
-    role: "OPERATOR",
-    organization: {
-      name: "Apex Verification Hub",
-      code: "APEX-VERIF-HQ-09",
-    },
-  });
+  const [user, setUser] = useState<UserProfile | null>(null);
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -48,12 +40,15 @@ export function Navbar() {
       .then((data) => {
         if (data.authenticated && data.user) {
           setUser(data.user);
+        } else {
+          setUser(null);
         }
       })
       .catch(() => {});
   }, []);
 
   const handleSwitchRole = async (newRole: string) => {
+    if (!user) return;
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -119,7 +114,7 @@ export function Navbar() {
           {/* Org Division Pill */}
           <div className="hidden lg:flex items-center pl-4 border-l border-border/80">
             <span className="text-xs text-slate-400 font-medium truncate max-w-xs">
-              {user.organization?.name || "Apex Verification Hub"}
+              {user?.organization?.name || "Apex Verification Hub"}
             </span>
           </div>
         </div>
@@ -228,6 +223,7 @@ export function Navbar() {
           </div>
 
           {/* User Account Menu & Role Switcher */}
+          {user ? (
           <div className="relative">
             <button
               onClick={() => setShowUserMenu(!showUserMenu)}
@@ -306,6 +302,15 @@ export function Navbar() {
               </div>
             )}
           </div>
+          ) : (
+            <Link
+              href="/"
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs transition-colors flex items-center gap-1.5"
+            >
+              <User className="h-3.5 w-3.5" />
+              <span>Sign In</span>
+            </Link>
+          )}
         </div>
       </div>
     </header>
